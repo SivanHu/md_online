@@ -19,8 +19,10 @@ export default function HomePage() {
       .catch((e) => setError(e.message));
   }, []);
 
-  const todayPath = `daily/${new Date().toISOString().slice(0, 10)}.md`;
-  const hasTodaySummary = recent.some((item) => item.path === todayPath || item.path.endsWith(`/${todayPath}`));
+  const todayPath = config?.defaultProjectId
+    ? `projects/${config.defaultProjectId}/daily/${new Date().toISOString().slice(0, 10)}.md`
+    : null;
+  const hasTodaySummary = Boolean(todayPath) && recent.some((item) => item.path === todayPath);
 
   return (
     <div className="page">

@@ -1,6 +1,6 @@
 ---
 name: update-daily-summary
-description: Record what the user wanted and what Codex accomplished as a concise, readable Chinese work journal, group entries by project in the Sivan Note daily document, and sync through the remote document API. Use after Codex completes or meaningfully progresses a development task and the user asks to summarize, record, publish, or update today's work. Do not use for raw Git changelogs or for uploading an already-authored Markdown document unchanged.
+description: Record what the user wanted and what Codex accomplished as a concise, readable Chinese work journal, save each project's entries in its own Sivan Note project directory, and sync through the remote document API. Use after Codex completes or meaningfully progresses a development task and the user asks to summarize, record, publish, or update today's work. Do not use for raw Git changelogs or for uploading an already-authored Markdown document unchanged.
 ---
 
 # Update Daily Summary
@@ -53,7 +53,7 @@ Omit `对我有用的知识` when there is no meaningful lesson. Add `#### 后�
 
 Keep one ordinary task easy to read in one or two minutes. Avoid code snippets unless the code itself is the lesson.
 
-## Sync under the project
+## Sync to the project document
 
 Save only the entry to a temporary UTF-8 Markdown file. Choose a stable ID containing the project and task purpose, and reuse it when revising the same task.
 
@@ -66,6 +66,6 @@ node scripts/sync-daily-summary.mjs \
   --date <YYYY-MM-DD>
 ```
 
-The script detects the current Git repository name and groups the entry under `## <project>`. Pass `--project <name>` only when the detected name is misleading. It updates the same marked entry instead of duplicating it. Use `--dry-run` to inspect the merged document.
+The script detects the current Git repository name and writes only to `projects/<project>/daily/YYYY-MM-DD.md`. Pass `--project <name>` only when the detected name is misleading. Different projects never share a daily file. It updates the same marked entry instead of duplicating it. Use `--dry-run` to inspect the merged document.
 
 Do not call `/api/summary/daily` for work performed in another machine or repository. If synchronization fails, preserve the temporary entry and report its path and the error.

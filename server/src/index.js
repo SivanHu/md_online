@@ -8,6 +8,7 @@ import { errorHandler } from './utils/errors.js';
 import docsRouter from './routes/docs.js';
 import gitRouter from './routes/git.js';
 import summaryRouter from './routes/summary.js';
+import { projectIdentity } from './utils/project.js';
 
 const app = express();
 
@@ -27,9 +28,12 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.get('/api/config', (_req, res) => {
+  const defaultProject = projectIdentity(config.defaultProject);
   res.json({
     docsRoot: path.relative(config.projectRoot, config.docsRoot).replace(/\\/g, '/') || 'docs',
-    dailyDir: path.relative(config.projectRoot, config.dailyDir).replace(/\\/g, '/') || 'docs/daily',
+    projectsRoot: path.relative(config.projectRoot, config.projectsDir).replace(/\\/g, '/') || 'docs/projects',
+    defaultProject: defaultProject.name,
+    defaultProjectId: defaultProject.id,
     gitRepoPath: path.relative(config.projectRoot, config.gitRepoPath).replace(/\\/g, '/') || '.',
     allowWrite: config.allowWrite,
     llmEnabled: config.llm.enabled,

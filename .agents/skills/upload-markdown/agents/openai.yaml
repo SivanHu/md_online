@@ -1,4 +1,4 @@
 interface:
   display_name: "Upload Markdown"
-  short_description: "Upload an existing Markdown file to Sivan Note"
+  short_description: "Upload Markdown unchanged to its project directory"
   default_prompt: "Use $upload-markdown to upload this Markdown file to Sivan Note without changing its content."

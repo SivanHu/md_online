@@ -28,16 +28,16 @@ npm run dev
 ## 每日总结
 
 1. 打开 **总结工作台**
-2. 选择日期 / 风格
+2. 选择项目 / 日期 / 风格
 3. 点击 **生成预览** 或 **生成并保存**
-4. 文件默认写入 `docs/daily/YYYY-MM-DD.md`
+4. 文件默认写入 `docs/projects/<project>/daily/YYYY-MM-DD.md`
 
 也可以用 API：
 
 ```bash
 curl -X POST http://127.0.0.1:8787/api/summary/daily ^
   -H "Content-Type: application/json" ^
-  -d "{\"save\": true, \"language\": \"zh-CN\"}"
+  -d "{\"project\": \"md_online\", \"save\": true, \"language\": \"zh-CN\"}"
 ```
 
 ## 变更结构示意
@@ -46,7 +46,7 @@ curl -X POST http://127.0.0.1:8787/api/summary/daily ^
 flowchart LR
   Codex[Codex 改代码] --> Git[Git Diff]
   Git --> API[summary API]
-  API --> MD[docs/daily]
+  API --> MD[docs/projects/project/daily]
   MD --> Viewer[在线阅读]
 ```
 

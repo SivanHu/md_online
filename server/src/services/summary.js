@@ -2,10 +2,13 @@ import path from 'node:path';
 import config from '../config.js';
 import { getTodayChanges, getDiffSummary, todayBounds } from './git.js';
 import { saveDocContent } from './docs.js';
+import { projectIdentity } from '../utils/project.js';
 
-function defaultOutputPath(date) {
+function defaultOutputPath(projectId, date) {
   return path.posix.join(
-    path.relative(config.docsRoot, config.dailyDir).replace(/\\/g, '/') || 'daily',
+    path.relative(config.docsRoot, config.projectsDir).replace(/\\/g, '/') || 'projects',
+    projectId,
+    'daily',
     `${date}.md`,
   );
 }
@@ -32,7 +35,7 @@ function statusLabel(status) {
   return map[s] || status || '修改';
 }
 
-function buildMermaidFlow(stats, modules) {
+function buildMermaidFlow(stats, modules, projectId) {
   const modNodes = modules.slice(0, 6).map(([name], i) => ({
     id: `M${i}`,
     label: name.replace(/"/g, "'"),
@@ -47,7 +50,7 @@ function buildMermaidFlow(stats, modules) {
       lines.push(`  ${n.id} --> Summary[每日总结]`);
     }
   }
-  lines.push('  Summary --> Docs[docs/daily]');
+  lines.push(`  Summary --> Docs[docs/projects/${projectId}/daily]`);
   lines.push(`  Stats["files ${stats.filesChanged} · +${stats.insertions} / -${stats.deletions}"]`);
   lines.push('  Summary --> Stats');
   return lines.join('\n');
@@ -65,7 +68,7 @@ function buildGitGraph(commits) {
   return lines.join('\n');
 }
 
-function buildTemplateMarkdown({ date, style, language, changes, customNotes }) {
+function buildTemplateMarkdown({ date, project, projectId, style, language, changes, customNotes }) {
   const { stats, files, commits, truncated } = changes;
   const modules = groupByModule(files);
   const isZh = !language || language.toLowerCase().startsWith('zh');
@@ -93,7 +96,7 @@ function buildTemplateMarkdown({ date, style, language, changes, customNotes }) 
     ? commits.map((c) => `- \`${c.shortHash || c.hash?.slice(0, 7)}\` ${c.message}（${c.authorName || 'unknown'}）`).join('\n')
     : (isZh ? '- （无 commit，可能仅为工作区未提交变更）' : '- (no commits; working tree only)');
 
-  const flow = buildMermaidFlow(stats, modules);
+  const flow = buildMermaidFlow(stats, modules, projectId);
   const gitGraph = buildGitGraph(commits);
 
   const styleTitle = {
@@ -121,11 +124,12 @@ function buildTemplateMarkdown({ date, style, language, changes, customNotes }) 
   return `---
 title: ${styleTitle} · ${date}
 date: ${date}
+project: ${project}
 tags: [daily, summary, ${style}]
 generated_by: sivan-note
 ---
 
-# ${styleTitle} · ${date}
+# ${project} · ${styleTitle} · ${date}
 
 ## 一句话概述
 
@@ -163,10 +167,10 @@ ${riskSection}
 ${notes}`.trim() + '\n';
 }
 
-async function buildLlmMarkdown({ date, style, language, changes, customNotes }) {
+async function buildLlmMarkdown({ date, project, style, language, changes, customNotes }) {
   const system = `You are a senior engineer writing a concise engineering daily summary in ${language || 'zh-CN'}.
 Output pure Markdown only (no code fence wrapping the whole document).
-Include YAML frontmatter with title, date, tags, generated_by: sivan-note.
+Include YAML frontmatter with title, date, project: ${project}, tags, generated_by: sivan-note.
 Required sections:
 1. 一句话概述
 2. 主要改动 (bullet points by module)
@@ -181,6 +185,7 @@ Style: ${style}.`;
 
   const userPayload = {
     date,
+    project,
     style,
     language,
     customNotes: customNotes || null,
@@ -223,6 +228,7 @@ Style: ${style}.`;
 export async function generateDailySummary(options = {}) {
   const {
     date: dateInput,
+    project: projectInput = config.defaultProject,
     since,
     until,
     baseRef,
@@ -239,6 +245,7 @@ export async function generateDailySummary(options = {}) {
 
   const bounds = todayBounds(dateInput);
   const date = bounds.date;
+  const project = projectIdentity(projectInput, config.defaultProject);
 
   let changes;
   if (baseRef) {
@@ -265,26 +272,28 @@ export async function generateDailySummary(options = {}) {
   let mode = 'template';
   if (shouldUseLlm) {
     try {
-      summaryMarkdown = await buildLlmMarkdown({ date, style, language, changes, customNotes });
+      summaryMarkdown = await buildLlmMarkdown({ date, project: project.name, style, language, changes, customNotes });
       mode = 'llm';
     } catch (err) {
       console.warn('LLM failed, fallback to template:', err.message);
-      summaryMarkdown = buildTemplateMarkdown({ date, style, language, changes, customNotes });
+      summaryMarkdown = buildTemplateMarkdown({ date, project: project.name, projectId: project.id, style, language, changes, customNotes });
       mode = 'template_fallback';
     }
   } else {
-    summaryMarkdown = buildTemplateMarkdown({ date, style, language, changes, customNotes });
+    summaryMarkdown = buildTemplateMarkdown({ date, project: project.name, projectId: project.id, style, language, changes, customNotes });
   }
 
   let savedPath = null;
   if (save) {
-    const rel = (outputPath || defaultOutputPath(date)).replace(/\\/g, '/');
+    const rel = (outputPath || defaultOutputPath(project.id, date)).replace(/\\/g, '/');
     await saveDocContent(rel, summaryMarkdown);
     savedPath = rel;
   }
 
   return {
     date,
+    project: project.name,
+    projectId: project.id,
     mode,
     style,
     language,

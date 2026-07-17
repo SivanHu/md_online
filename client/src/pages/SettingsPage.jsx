@@ -27,7 +27,8 @@ export default function SettingsPage() {
           <table className="kv-table">
             <tbody>
               <tr><th>文档根目录</th><td><code>{config.docsRoot}</code></td></tr>
-              <tr><th>日报目录</th><td><code>{config.dailyDir}</code></td></tr>
+              <tr><th>项目文档目录</th><td><code>{config.projectsRoot}</code></td></tr>
+              <tr><th>默认项目</th><td><code>{config.defaultProject}</code></td></tr>
               <tr><th>Git 仓库</th><td><code>{config.gitRepoPath}</code></td></tr>
               <tr><th>允许写入</th><td>{config.allowWrite ? '是' : '否'}</td></tr>
               <tr><th>LLM</th><td>{config.llmEnabled ? `启用 · ${config.llmModel}` : '关闭（模板模式）'}</td></tr>

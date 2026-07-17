@@ -17,7 +17,9 @@ tags: [home]
 ```text
 docs/
   guide/          # 使用与 API 说明
-  daily/          # 每日修改总结
+  projects/       # 每个项目独立存储
+    md_online/
+      daily/      # md_online 每日总结
   design/         # 设计文档（可自建）
 ```
 
@@ -25,5 +27,5 @@ docs/
 
 1. 完成功能修改与自测
 2. 调用总结接口或 CLI：`npm run summary:today -- --save`
-3. 人工润色 `docs/daily/当天.md`
+3. 人工润色 `docs/projects/<project>/daily/当天.md`
 4. 需要时再 commit 文档

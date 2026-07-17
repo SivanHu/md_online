@@ -10,6 +10,7 @@ const save = process.argv.includes('--save');
 
 const body = {
   save,
+  project: process.env.PROJECT_NAME || undefined,
   language: process.env.SUMMARY_LANGUAGE || 'zh-CN',
   style: process.env.SUMMARY_STYLE || 'daily_standup',
   includeWorkingTree: true,

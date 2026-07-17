@@ -51,8 +51,8 @@ function stableId(value) {
   return normalized || `project-${crypto.createHash('sha256').update(value).digest('hex').slice(0, 10)}`;
 }
 
-function defaultDocument(date) {
-  return `---\ntitle: 每日工作总结 · ${date}\ndate: ${date}\ntags: [daily, codex]\ngenerated_by: codex\n---\n\n# ${date} 工作总结\n`;
+function defaultDocument(date, project) {
+  return `---\ntitle: ${project} · 每日工作总结 · ${date}\ndate: ${date}\nproject: ${project}\ntags: [daily, codex]\ngenerated_by: codex\n---\n\n# ${project} · ${date} 工作总结\n`;
 }
 
 function removeMarkedBlock(document, start, end) {
@@ -63,22 +63,12 @@ function removeMarkedBlock(document, start, end) {
   return `${document.slice(0, startIndex).trimEnd()}\n${document.slice(endIndex + end.length).trimStart()}`;
 }
 
-function mergeProjectEntry(document, entry, entryId, project, projectId) {
+function mergeEntry(document, entry, entryId) {
   const entryStart = `<!-- sivan-note-entry:${entryId}:start -->`;
   const entryEnd = `<!-- sivan-note-entry:${entryId}:end -->`;
   const entryBlock = `${entryStart}\n${entry.trim()}\n${entryEnd}`;
-  const projectStart = `<!-- sivan-note-project:${projectId}:start -->`;
-  const projectEnd = `<!-- sivan-note-project:${projectId}:end -->`;
   const cleaned = removeMarkedBlock(document, entryStart, entryEnd);
-  const projectStartIndex = cleaned.indexOf(projectStart);
-
-  if (projectStartIndex === -1) {
-    return `${cleaned.trimEnd()}\n\n${projectStart}\n## ${project}\n\n${entryBlock}\n${projectEnd}\n`;
-  }
-
-  const projectEndIndex = cleaned.indexOf(projectEnd, projectStartIndex + projectStart.length);
-  if (projectEndIndex === -1) throw new Error(`found project start marker without end marker for ${project}`);
-  return `${cleaned.slice(0, projectEndIndex).trimEnd()}\n\n${entryBlock}\n${cleaned.slice(projectEndIndex)}`;
+  return `${cleaned.trimEnd()}\n\n${entryBlock}\n`;
 }
 
 async function responseBody(response) {
@@ -105,13 +95,13 @@ const baseUrl = (process.env.SIVAN_NOTE_URL || '').replace(/\/$/, '');
 if (!baseUrl) usage('SIVAN_NOTE_URL is required');
 const token = process.env.SIVAN_NOTE_TOKEN || '';
 const headers = { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-const docPath = `daily/${date}.md`;
+const docPath = `projects/${projectId}/daily/${date}.md`;
 const readUrl = `${baseUrl}/api/docs/content?path=${encodeURIComponent(docPath)}`;
 const readResponse = await fetch(readUrl, { headers });
 let current;
 
 if (readResponse.status === 404) {
-  current = defaultDocument(date);
+  current = defaultDocument(date, project);
 } else {
   const body = await responseBody(readResponse);
   if (!readResponse.ok) throw new Error(`failed to read ${docPath}: HTTP ${readResponse.status} ${body.error || body.message || body}`);
@@ -119,7 +109,7 @@ if (readResponse.status === 404) {
   if (typeof current !== 'string') throw new Error(`server returned no document content for ${docPath}`);
 }
 
-const merged = mergeProjectEntry(current, entry, entryId, project, projectId);
+const merged = mergeEntry(current, entry, entryId);
 if (args.dryRun) {
   process.stdout.write(merged);
   process.exit(0);
@@ -135,7 +125,7 @@ if (!writeResponse.ok) throw new Error(`failed to write ${docPath}: HTTP ${write
 
 const verifyResponse = await fetch(readUrl, { headers });
 const verifyBody = await responseBody(verifyResponse);
-if (!verifyResponse.ok || typeof verifyBody.raw !== 'string' || !verifyBody.raw.includes(`<!-- sivan-note-entry:${entryId}:start -->`) || !verifyBody.raw.includes(`<!-- sivan-note-project:${projectId}:start -->`)) {
+if (!verifyResponse.ok || typeof verifyBody.raw !== 'string' || !verifyBody.raw.includes(`<!-- sivan-note-entry:${entryId}:start -->`)) {
   throw new Error(`write verification failed for ${docPath}`);
 }
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Update Daily Summary"
-  short_description: "Write a readable project-grouped Codex work journal"
+  short_description: "Write a readable journal in a separate project folder"
   default_prompt: "Use $update-daily-summary to record what I wanted and what Codex accomplished in today's project journal."

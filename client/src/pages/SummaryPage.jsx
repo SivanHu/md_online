@@ -8,8 +8,17 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function projectId(value) {
+  return String(value || 'project')
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'project';
+}
+
 export default function SummaryPage() {
   const [date, setDate] = useState(todayStr());
+  const [project, setProject] = useState('');
   const [style, setStyle] = useState('daily_standup');
   const [language, setLanguage] = useState('zh-CN');
   const [customNotes, setCustomNotes] = useState('');
@@ -32,15 +41,19 @@ export default function SummaryPage() {
       setUseLlm(Boolean(c.llmEnabled));
       setLanguage(c.summaryLanguage || 'zh-CN');
       setStyle(c.summaryStyle || 'daily_standup');
+      setProject(c.defaultProject || 'project');
     }).catch(() => {});
   }, []);
 
   useEffect(() => {
-    setOutputPath(`daily/${date}.md`);
     api.gitToday(date)
       .then(setChanges)
       .catch((e) => setError(e.message));
   }, [date]);
+
+  useEffect(() => {
+    if (project) setOutputPath(`projects/${projectId(project)}/daily/${date}.md`);
+  }, [date, project]);
 
   async function generate(save = false) {
     setLoading(true);
@@ -49,6 +62,7 @@ export default function SummaryPage() {
     try {
       const body = {
         date,
+        project,
         style,
         language,
         customNotes,
@@ -84,7 +98,7 @@ export default function SummaryPage() {
     setSaving(true);
     setError('');
     try {
-      const path = outputPath || `daily/${date}.md`;
+      const path = outputPath || `projects/${projectId(project)}/daily/${date}.md`;
       await api.summarySave(path, markdown);
       setMessage(`已保存到 ${path}`);
     } catch (e) {
@@ -106,6 +120,10 @@ export default function SummaryPage() {
           <label>
             日期
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </label>
+          <label>
+            项目
+            <input value={project} onChange={(e) => setProject(e.target.value)} placeholder="例如 md_online" />
           </label>
           <label>
             风格

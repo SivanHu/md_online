@@ -17,14 +17,19 @@ function resolveFromRoot(p, fallback) {
   return path.isAbsolute(raw) ? raw : path.resolve(projectRoot, raw);
 }
 
+const docsRoot = resolveFromRoot(process.env.DOCS_ROOT, './docs');
+const projectsDir = resolveFromRoot(process.env.PROJECTS_DIR, './docs/projects');
+const gitRepoPath = resolveFromRoot(process.env.GIT_REPO_PATH, '.');
+
 export const config = {
   projectRoot,
   host: process.env.HOST || '127.0.0.1',
   port: Number(process.env.PORT || 8787),
   authToken: process.env.AUTH_TOKEN || '',
-  docsRoot: resolveFromRoot(process.env.DOCS_ROOT, './docs'),
-  dailyDir: resolveFromRoot(process.env.DAILY_DIR, './docs/daily'),
-  gitRepoPath: resolveFromRoot(process.env.GIT_REPO_PATH, '.'),
+  docsRoot,
+  projectsDir,
+  gitRepoPath,
+  defaultProject: process.env.PROJECT_NAME || path.basename(gitRepoPath),
   allowWrite: bool(process.env.ALLOW_WRITE, true),
   llm: {
     enabled: bool(process.env.LLM_ENABLED, false) && Boolean(process.env.OPENAI_API_KEY),

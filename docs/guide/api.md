@@ -38,10 +38,11 @@ tags: [api, reference]
 ```json
 {
   "date": "2026-07-17",
+  "project": "md_online",
   "style": "daily_standup",
   "language": "zh-CN",
   "save": true,
-  "outputPath": "daily/2026-07-17.md",
+  "outputPath": "projects/md_online/daily/2026-07-17.md",
   "includeWorkingTree": true,
   "useLlm": false,
   "customNotes": "可选备注",
@@ -56,7 +57,7 @@ tags: [api, reference]
 ### `POST /api/summary/save`
 
 ```json
-{ "path": "daily/2026-07-17.md", "content": "# ..." }
+{ "path": "projects/md_online/daily/2026-07-17.md", "content": "# ..." }
 ```
 
 ### `GET /api/summary/stats.svg`

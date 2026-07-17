@@ -24,6 +24,7 @@ router.post('/daily', asyncHandler(async (req, res) => {
   const body = parseBody(req);
   const result = await generateDailySummary({
     date: body.date,
+    project: body.project,
     since: body.since,
     until: body.until,
     baseRef: body.baseRef,

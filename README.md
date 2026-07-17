@@ -44,7 +44,9 @@ sivan-note/
   server/          # Express API
   docs/            # Markdown 文档库
     guide/         # 使用与 API 说明
-    daily/         # 每日总结输出目录
+    projects/      # 按项目隔离的文档
+      md_online/
+        daily/     # md_online 的每日总结
   scripts/         # CLI 辅助脚本
 ```
 
@@ -53,14 +55,14 @@ sivan-note/
 ### 网页
 
 打开 **总结工作台** → 生成预览 / 生成并保存。  
-默认输出：`docs/daily/YYYY-MM-DD.md`。
+默认输出：`docs/projects/<project>/daily/YYYY-MM-DD.md`，不同项目不会共用日报文件。
 
 ### API（供 Codex / 脚本调用）
 
 ```bash
 curl -X POST http://127.0.0.1:8787/api/summary/daily \
   -H "Content-Type: application/json" \
-  -d "{\"save\":true,\"language\":\"zh-CN\",\"style\":\"daily_standup\"}"
+  -d "{\"project\":\"md_online\",\"save\":true,\"language\":\"zh-CN\",\"style\":\"daily_standup\"}"
 ```
 
 请求体常用字段：
@@ -68,6 +70,7 @@ curl -X POST http://127.0.0.1:8787/api/summary/daily \
 | 字段 | 说明 |
 |------|------|
 | `date` | 日期 `YYYY-MM-DD` |
+| `project` | 项目名称，决定独立的项目目录 |
 | `baseRef` | 如 `main`、`HEAD~10` |
 | `paths` | 路径过滤数组 |
 | `style` | `daily_standup` / `changelog` / `release_note` |
@@ -95,7 +98,8 @@ npm run summary:today -- --save
 |------|------|
 | `PORT` | API 端口，默认 8787 |
 | `DOCS_ROOT` | 文档根目录 |
-| `DAILY_DIR` | 日报目录 |
+| `PROJECTS_DIR` | 项目文档根目录 |
+| `PROJECT_NAME` | 当前 Git 仓库的默认项目名称 |
 | `GIT_REPO_PATH` | Git 仓库路径 |
 | `ALLOW_WRITE` | 是否允许写文件 |
 | `AUTH_TOKEN` | 非空则要求 Bearer Token |
@@ -112,11 +116,11 @@ npm run summary:today -- --save
 2. 调用：
 
 ```text
-POST /api/summary/daily  { "save": true }
+POST /api/summary/daily  { "project": "md_online", "save": true }
 ```
 
 或让 Codex 执行 `npm run summary:today -- --save`  
-3. 在文档站打开 `docs/daily/当天.md` 复查  
+3. 在文档站打开 `docs/projects/<project>/daily/当天.md` 复查
 4. 需要时把文档一并提交  
 
 ## 主要 API 一览
