@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { asyncHandler } from '../utils/errors.js';
 import * as docs from '../services/docs.js';
 

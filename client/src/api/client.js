@@ -1,4 +1,4 @@
-﻿const JSON_HEADERS = { 'Content-Type': 'application/json' };
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 async function request(url, options = {}) {
   const res = await fetch(url, options);

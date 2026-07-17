@@ -1,4 +1,4 @@
-﻿export default function DocTree({ tree, currentPath, onSelect }) {
+export default function DocTree({ tree, currentPath, onSelect }) {
   if (!tree?.children?.length) {
     return <div className="muted pad">暂无文档。请在 docs/ 下添加 Markdown 文件。</div>;
   }

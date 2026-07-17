@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -18,7 +18,7 @@ app.use(authMiddleware);
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
-    service: 'md_online',
+    service: 'sivan-note',
     time: new Date().toISOString(),
     docsRoot: path.relative(config.projectRoot, config.docsRoot) || 'docs',
     llmEnabled: config.llm.enabled,
@@ -57,7 +57,7 @@ if (fs.existsSync(clientDist)) {
 app.use(errorHandler);
 
 app.listen(config.port, config.host, () => {
-  console.log(`md_online server listening on http://${config.host}:${config.port}`);
+  console.log(`Sivan Note server listening on http://${config.host}:${config.port}`);
   console.log(`docs: ${config.docsRoot}`);
   console.log(`git:  ${config.gitRepoPath}`);
   console.log(`llm:  ${config.llm.enabled ? config.llm.model : 'disabled (template mode)'}`);

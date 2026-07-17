@@ -1,4 +1,4 @@
-﻿export default function StatCards({ stats }) {
+export default function StatCards({ stats }) {
   const items = [
     { label: '文件', value: stats?.filesChanged ?? 0 },
     { label: '新增行', value: stats?.insertions ?? 0, tone: 'plus' },

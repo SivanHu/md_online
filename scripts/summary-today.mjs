@@ -1,11 +1,11 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * CLI helper: generate today's daily summary via local API.
  * Usage: npm run summary:today
  *        node scripts/summary-today.mjs --save
  */
 const port = process.env.PORT || 8787;
-const base = process.env.MD_ONLINE_URL || `http://127.0.0.1:${port}`;
+const base = process.env.SIVAN_NOTE_URL || `http://127.0.0.1:${port}`;
 const save = process.argv.includes('--save');
 
 const body = {

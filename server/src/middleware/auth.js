@@ -1,4 +1,4 @@
-﻿import config from '../config.js';
+import config from '../config.js';
 
 export function authMiddleware(req, res, next) {
   if (!config.authToken) return next();

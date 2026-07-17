@@ -1,12 +1,12 @@
-﻿---
-title: md_online 使用指南
+---
+title: Sivan Note 使用指南
 date: 2026-07-17
 tags: [guide, getting-started]
 ---
 
-# md_online 使用指南
+# Sivan Note 使用指南
 
-`md_online` 是本地 Markdown 知识库，并提供基于 Git 变更的**每日修改总结**能力，方便 Codex 改完代码后归档日报。
+`Sivan Note` 是本地 Markdown 知识库，并提供基于 Git 变更的**每日修改总结**能力，方便 Codex 改完代码后归档日报。
 
 ## 快速开始
 

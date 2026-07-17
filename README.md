@@ -1,4 +1,4 @@
-﻿# md_online
+# Sivan Note
 
 本地 **Markdown 知识库** + **每日代码修改总结工作台**。  
 适合在 Codex 改完代码后，基于 Git 变更一键生成/归档日报，并在网页中阅读项目文档。
@@ -39,7 +39,7 @@ npm start
 ## 目录结构
 
 ```text
-md_online/
+sivan-note/
   client/          # React + Vite 前端
   server/          # Express API
   docs/            # Markdown 文档库
@@ -84,6 +84,8 @@ curl -X POST http://127.0.0.1:8787/api/summary/daily \
 # 需先启动服务端
 npm run summary:today -- --save
 ```
+
+环境变量 `SIVAN_NOTE_URL` 可覆盖 API 地址（默认 `http://127.0.0.1:8787`）。
 
 ## 配置
 

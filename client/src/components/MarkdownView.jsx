@@ -1,11 +1,9 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import mermaid from 'mermaid';
-
-let mermaidReady = false;
 
 function ensureMermaid(theme) {
   const mTheme = theme === 'light' ? 'default' : 'dark';
@@ -15,7 +13,6 @@ function ensureMermaid(theme) {
     securityLevel: 'loose',
     fontFamily: 'IBM Plex Sans, sans-serif',
   });
-  mermaidReady = true;
 }
 
 function MermaidBlock({ code, theme }) {
@@ -74,30 +71,40 @@ function extractToc(markdown) {
   return items;
 }
 
+function getNodeText(node) {
+  if (node == null || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(getNodeText).join('');
+  if (node.props?.children) return getNodeText(node.props.children);
+  return '';
+}
+
 export default function MarkdownView({ content, showToc = true }) {
   const theme = document.documentElement.getAttribute('data-theme') || 'dark';
   const toc = useMemo(() => extractToc(content), [content]);
 
   const components = useMemo(
     () => ({
-      code({ className, children, ...props }) {
-        const text = String(children).replace(/\n$/, '');
-        const match = /language-(\w+)/.exec(className || '');
+      pre({ children }) {
+        const child = Array.isArray(children) ? children[0] : children;
+        const className = child?.props?.className || '';
+        const match = /language-(\w+)/.exec(className);
         const lang = match?.[1];
-        const isInline = !className && !String(children).includes('\n');
-        if (!isInline && lang === 'mermaid') {
+        const text = getNodeText(child).replace(/\n$/, '');
+        if (lang === 'mermaid') {
           return <MermaidBlock code={text} theme={theme} />;
         }
-        return (
-          <code className={className} {...props}>
-            {children}
-          </code>
-        );
+        return <pre>{children}</pre>;
       },
       a({ href, children, ...props }) {
         const external = href?.startsWith('http');
         return (
-          <a href={href} target={external ? '_blank' : undefined} rel={external ? 'noreferrer' : undefined} {...props}>
+          <a
+            href={href}
+            target={external ? '_blank' : undefined}
+            rel={external ? 'noreferrer' : undefined}
+            {...props}
+          >
             {children}
           </a>
         );

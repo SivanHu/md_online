@@ -1,4 +1,4 @@
-﻿import { NavLink, Route, Routes } from 'react-router-dom';
+import { NavLink, Route, Routes } from 'react-router-dom';
 import HomePage from './pages/HomePage.jsx';
 import DocsPage from './pages/DocsPage.jsx';
 import SummaryPage from './pages/SummaryPage.jsx';
@@ -7,10 +7,10 @@ import SettingsPage from './pages/SettingsPage.jsx';
 import { useEffect, useState } from 'react';
 
 function useTheme() {
-  const [theme, setTheme] = useState(() => localStorage.getItem('md_online_theme') || 'dark');
+  const [theme, setTheme] = useState(() => localStorage.getItem('sivan_note_theme') || 'dark');
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('md_online_theme', theme);
+    localStorage.setItem('sivan_note_theme', theme);
   }, [theme]);
   return [theme, setTheme];
 }
@@ -22,9 +22,9 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark">MD</span>
+          <span className="brand-mark">SN</span>
           <div>
-            <div className="brand-title">md_online</div>
+            <div className="brand-title">Sivan Note</div>
             <div className="brand-sub">文档库 · 每日变更总结</div>
           </div>
         </div>

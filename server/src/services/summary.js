@@ -1,4 +1,4 @@
-﻿import path from 'node:path';
+import path from 'node:path';
 import config from '../config.js';
 import { getTodayChanges, getDiffSummary, todayBounds } from './git.js';
 import { saveDocContent } from './docs.js';
@@ -33,11 +33,10 @@ function statusLabel(status) {
 }
 
 function buildMermaidFlow(stats, modules) {
-  const modNodes = modules.slice(0, 6).map(([name], i) => {
-    const id = `M${i}`;
-    const label = name.replace(/"/g, "'");
-    return { id, label };
-  });
+  const modNodes = modules.slice(0, 6).map(([name], i) => ({
+    id: `M${i}`,
+    label: name.replace(/"/g, "'"),
+  }));
 
   const lines = ['flowchart LR', '  Codex[Codex / 开发改动] --> Git[Git 变更]'];
   if (modNodes.length === 0) {
@@ -49,8 +48,8 @@ function buildMermaidFlow(stats, modules) {
     }
   }
   lines.push('  Summary --> Docs[docs/daily]');
-  lines.push(`  note["files ${stats.filesChanged} · +${stats.insertions} / -${stats.deletions}"]`);
-  lines.push('  Summary -.-> note');
+  lines.push(`  Stats["files ${stats.filesChanged} · +${stats.insertions} / -${stats.deletions}"]`);
+  lines.push('  Summary --> Stats');
   return lines.join('\n');
 }
 
@@ -59,10 +58,9 @@ function buildGitGraph(commits) {
   const lines = ['gitGraph'];
   const list = [...commits].reverse().slice(0, 12);
   for (const c of list) {
-    const msg = (c.message || c.shortHash || 'commit')
-      .replace(/"/g, "'")
-      .slice(0, 40);
-    lines.push(`  commit id: "${c.shortHash || c.hash?.slice(0, 7)} ${msg}"`);
+    const msg = (c.message || c.shortHash || 'commit').replace(/"/g, "'").slice(0, 40);
+    const id = c.shortHash || c.hash?.slice(0, 7) || 'commit';
+    lines.push(`  commit id: "${id} ${msg}"`);
   }
   return lines.join('\n');
 }
@@ -116,11 +114,15 @@ function buildTemplateMarkdown({ date, style, language, changes, customNotes }) 
     ? (isZh ? '\n> 注意：diff 过长已截断，统计基于 numstat，细节可能不完整。\n' : '\n> Note: diff truncated due to size.\n')
     : '';
 
+  const gitGraphSection = gitGraph
+    ? `\n## 提交演进\n\n\`\`\`mermaid\n${gitGraph}\n\`\`\`\n`
+    : '';
+
   return `---
 title: ${styleTitle} · ${date}
 date: ${date}
 tags: [daily, summary, ${style}]
-generated_by: md_online
+generated_by: sivan-note
 ---
 
 # ${styleTitle} · ${date}
@@ -148,7 +150,7 @@ ${commitLines}
 \`\`\`mermaid
 ${flow}
 \`\`\`
-${gitGraph ? `\n## 提交演进\n\n\`\`\`mermaid\n${gitGraph}\n\`\`\`\n` : ''}
+${gitGraphSection}
 ${riskSection}
 
 ## 统计
@@ -164,7 +166,7 @@ ${notes}`.trim() + '\n';
 async function buildLlmMarkdown({ date, style, language, changes, customNotes }) {
   const system = `You are a senior engineer writing a concise engineering daily summary in ${language || 'zh-CN'}.
 Output pure Markdown only (no code fence wrapping the whole document).
-Include YAML frontmatter with title, date, tags.
+Include YAML frontmatter with title, date, tags, generated_by: sivan-note.
 Required sections:
 1. 一句话概述
 2. 主要改动 (bullet points by module)
@@ -321,7 +323,7 @@ export function buildStatsSvg(stats, modules) {
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <rect width="100%" height="100%" fill="#f8fafc"/>
   <text x="20" y="28" font-size="16" font-family="Segoe UI, sans-serif" fill="#0f172a">变更模块分布 · files ${stats.filesChanged} · +${stats.insertions}/-${stats.deletions}</text>
-  ${rects || `<text x="20" y="100" fill="#94a3b8">No file changes</text>`}
+  ${rects || '<text x="20" y="100" fill="#94a3b8">No file changes</text>'}
 </svg>`;
 }
 

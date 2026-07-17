@@ -1,5 +1,5 @@
 {
-  "name": "md_online_client",
+  "name": "sivan-note-client",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "md_online": "file:..",
     "mermaid": "^11.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
