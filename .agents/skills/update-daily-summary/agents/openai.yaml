@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Daily Summary"
+  short_description: "Summarize development context and sync Sivan Note"
+  default_prompt: "Use $update-daily-summary to summarize this development task and sync it to the daily Sivan Note document."
