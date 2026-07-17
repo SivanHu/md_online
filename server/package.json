@@ -1,0 +1,19 @@
+{
+  "name": "md_online_server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "build": "echo \"server is plain JS, no build step\"",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "gray-matter": "^4.0.3",
+    "md_online": "file:..",
+    "simple-git": "^3.27.0"
+  }
+}
