@@ -1,65 +1,71 @@
 ---
 name: update-daily-summary
-description: Summarize a completed or meaningfully progressed development task as problem context, solution approach, core code, technical knowledge, and verification, then sync it from Codex CLI or the IDE to a remote Sivan Note daily Markdown document. Use when the user asks to record, update, publish, or sync a development summary, work log, daily note, or project learning. Do not use for a raw Git changelog or when no meaningful work has been completed.
+description: Record what the user wanted and what Codex accomplished as a concise, readable Chinese work journal, group entries by project in the Sivan Note daily document, and sync through the remote document API. Use after Codex completes or meaningfully progresses a development task and the user asks to summarize, record, publish, or update today's work. Do not use for raw Git changelogs or for uploading an already-authored Markdown document unchanged.
 ---
 
 # Update Daily Summary
 
-Create a useful engineering narrative from the current task and update the Sivan Note service running on another machine.
+Write a human-readable record of the collaboration, not a technical report or a reformatted Git diff.
 
 ## Prepare the environment
 
-Require Node.js 18 or later and these environment variables in the Codex execution environment:
+Require Node.js 18 or later and:
 
 ```bash
 export SIVAN_NOTE_URL="http://192.168.231.1:8787"
 export SIVAN_NOTE_TOKEN="token-configured-on-the-server"
 ```
 
-Treat `SIVAN_NOTE_TOKEN` as a secret. Never print it, write it into the repository, or pass it as a command-line argument.
+Never print or persist `SIVAN_NOTE_TOKEN`.
 
-## Build the entry
+## Understand the work
 
-Inspect the conversation, relevant Git diff, changed files, tests, and implementation before writing. Prefer evidence from the task over commit-message wording. Do not invent motivations or results.
+Inspect the conversation first, then use the Git diff, important files, and verification results only as evidence. Identify:
 
-Write one self-contained Markdown entry using this structure:
+1. What the user wanted and why.
+2. What Codex actually did.
+3. What result is now available to the user.
+4. What knowledge is genuinely useful for later reading.
+
+Do not invent motivations or completed results. Do not make filenames, functions, routes, commit IDs, or line counts the main story.
+
+## Write a readable entry
+
+Write one concise Chinese entry. Prefer short paragraphs and result-oriented bullets. Use this structure:
 
 ```markdown
-## <short task title>
+### <这项工作的直白标题>
 
-### 背景与目标
-Explain the concrete problem, constraint, or user need.
+#### 我想做什么
+用第一人称说明目标以及遇到的问题。
 
-### 解决方式
-Explain the chosen approach and why it solves the problem. Mention meaningful tradeoffs.
+#### Codex 帮我做了什么
+按自然语言说明 Codex 的判断、主要操作和方案，不逐文件复述改动。
 
-### 核心代码
-Name the important files, functions, routes, or data structures. Include only short snippets when they materially clarify the implementation.
+#### 最终结果
+- 列出现在可以使用、确认或继续推进的结果。
 
-### 涉及知识
-Explain reusable concepts, framework behavior, protocols, or engineering lessons involved.
-
-### 验证与结果
-Record commands or checks actually run and their outcomes.
+#### 对我有用的知识
+只记录以后仍有帮助的概念或经验。
 ```
 
-Add `### 遗留问题` only when a real limitation or follow-up remains. Do not turn file counts, insertion counts, or a file-by-file diff into the main narrative.
+Omit `对我有用的知识` when there is no meaningful lesson. Add `#### 后续事项` only for a real unfinished item. Put at most three essential file paths or commands in a final `#### 技术补充` section when they help future troubleshooting.
 
-## Sync the entry
+Keep one ordinary task easy to read in one or two minutes. Avoid code snippets unless the code itself is the lesson.
 
-Save only the entry to a temporary UTF-8 Markdown file. Build a stable entry ID from the repository name and task purpose, using lowercase letters, digits, dots, underscores, or hyphens. Reuse that ID when revising the same task.
+## Sync under the project
 
-Run the bundled script from this skill directory:
+Save only the entry to a temporary UTF-8 Markdown file. Choose a stable ID containing the project and task purpose, and reuse it when revising the same task.
+
+Run the bundled script relative to this `SKILL.md`:
 
 ```bash
 node scripts/sync-daily-summary.mjs \
   --input <temporary-entry.md> \
-  --entry-id <repository-task-slug> \
+  --entry-id <project-task-slug> \
   --date <YYYY-MM-DD>
 ```
 
-Resolve `scripts/sync-daily-summary.mjs` relative to this `SKILL.md`, not relative to the user's repository. Omit `--date` to use the local calendar date. Use `--dry-run` to inspect the merged document without writing it.
+The script detects the current Git repository name and groups the entry under `## <project>`. Pass `--project <name>` only when the detected name is misleading. It updates the same marked entry instead of duplicating it. Use `--dry-run` to inspect the merged document.
 
-The script reads the existing `daily/YYYY-MM-DD.md`, inserts or replaces the marked entry, writes the merged document through `PUT /api/docs/content`, and verifies the saved document. Do not call `/api/summary/daily` for changes made in the VM because that endpoint inspects the Windows host repository instead.
-
-If synchronization fails, preserve the generated entry locally and report the error and file path. Never claim the online document was updated without a successful response and verification.
+Do not call `/api/summary/daily` for work performed in another machine or repository. If synchronization fails, preserve the temporary entry and report its path and the error.

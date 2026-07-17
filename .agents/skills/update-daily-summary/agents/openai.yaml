@@ -1,4 +1,4 @@
 interface:
   display_name: "Update Daily Summary"
-  short_description: "Summarize development context and sync Sivan Note"
-  default_prompt: "Use $update-daily-summary to summarize this development task and sync it to the daily Sivan Note document."
+  short_description: "Write a readable project-grouped Codex work journal"
+  default_prompt: "Use $update-daily-summary to record what I wanted and what Codex accomplished in today's project journal."
