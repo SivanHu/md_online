@@ -1,12 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import StatCards from '../components/StatCards.jsx';
 import MarkdownView from '../components/MarkdownView.jsx';
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
+import { formatLocalDate } from '../utils/date.js';
 
 function projectId(value) {
   return String(value || 'project')
@@ -17,12 +14,13 @@ function projectId(value) {
 }
 
 export default function SummaryPage() {
-  const [date, setDate] = useState(todayStr());
+  const [date, setDate] = useState(formatLocalDate());
   const [project, setProject] = useState('');
   const [style, setStyle] = useState('daily_standup');
   const [language, setLanguage] = useState('zh-CN');
   const [customNotes, setCustomNotes] = useState('');
   const [baseRef, setBaseRef] = useState('');
+  const [pathsText, setPathsText] = useState('');
   const [includeWorkingTree, setIncludeWorkingTree] = useState(true);
   const [useLlm, setUseLlm] = useState(false);
   const [outputPath, setOutputPath] = useState('');
@@ -34,6 +32,15 @@ export default function SummaryPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [config, setConfig] = useState(null);
+  const [exists, setExists] = useState(false);
+  const [theme, setTheme] = useState(
+    () => document.documentElement.getAttribute('data-theme') || 'dark',
+  );
+
+  const paths = useMemo(
+    () => pathsText.split(/[,，\s]+/).map((s) => s.trim()).filter(Boolean),
+    [pathsText],
+  );
 
   useEffect(() => {
     api.config().then((c) => {
@@ -46,20 +53,68 @@ export default function SummaryPage() {
   }, []);
 
   useEffect(() => {
-    api.gitToday(date)
-      .then(setChanges)
-      .catch((e) => setError(e.message));
-  }, [date]);
+    const el = document.documentElement;
+    const obs = new MutationObserver(() => {
+      setTheme(el.getAttribute('data-theme') || 'dark');
+    });
+    obs.observe(el, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
 
   useEffect(() => {
     if (project) setOutputPath(`projects/${projectId(project)}/daily/${date}.md`);
   }, [date, project]);
 
-  async function generate(save = false) {
+  useEffect(() => {
+    if (!outputPath) {
+      setExists(false);
+      return;
+    }
+    api.docExists(outputPath)
+      .then((r) => setExists(Boolean(r.exists)))
+      .catch(() => setExists(false));
+  }, [outputPath]);
+
+  useEffect(() => {
+    setError('');
+    const params = {
+      date,
+      includeWorkingTree,
+      baseRef: baseRef || undefined,
+      paths: paths.length ? paths.join(',') : undefined,
+    };
+    api.gitToday(params)
+      .then(setChanges)
+      .catch((e) => setError(e.message));
+  }, [date, includeWorkingTree, baseRef, pathsText]);
+
+  const statsImg = useMemo(
+    () => api.statsSvgUrl({
+      date,
+      includeWorkingTree,
+      baseRef: baseRef || undefined,
+      paths: paths.length ? paths.join(',') : undefined,
+      theme,
+    }),
+    [date, includeWorkingTree, baseRef, pathsText, theme],
+  );
+
+  async function generate(save = false, force = false) {
     setLoading(true);
     setError('');
     setMessage('');
     try {
+      if (save && exists && !force) {
+        const ok = window.confirm(
+          `目标文件已存在：\n${outputPath}\n\n是否覆盖保存？`,
+        );
+        if (!ok) {
+          setLoading(false);
+          return;
+        }
+        force = true;
+      }
+
       const body = {
         date,
         project,
@@ -69,8 +124,10 @@ export default function SummaryPage() {
         includeWorkingTree,
         useLlm,
         save,
+        force,
         outputPath: outputPath || undefined,
         baseRef: baseRef || undefined,
+        paths: paths.length ? paths : undefined,
       };
       const result = await api.summaryDaily(body);
       setMarkdown(result.summaryMarkdown || '');
@@ -81,12 +138,23 @@ export default function SummaryPage() {
         commits: result.commits,
         truncated: result.truncated,
       });
-      setMessage(
-        save
-          ? `已保存到 ${result.savedPath}`
-          : `已生成（模式：${result.mode}）`,
-      );
+      if (result.savedPath) setExists(true);
+
+      let msg = save
+        ? `已保存到 ${result.savedPath}`
+        : `已生成（模式：${result.mode}）`;
+      if (result.mode === 'template_fallback' && result.fallbackReason) {
+        msg += ` · LLM 失败已回退：${result.fallbackReason}`;
+      }
+      setMessage(msg);
     } catch (e) {
+      if (e.status === 409) {
+        const ok = window.confirm(`${e.message}\n\n是否强制覆盖？`);
+        if (ok) {
+          setLoading(false);
+          return generate(true, true);
+        }
+      }
       setError(e.message);
     } finally {
       setLoading(false);
@@ -95,11 +163,16 @@ export default function SummaryPage() {
 
   async function saveEdited() {
     if (!markdown.trim()) return;
+    const path = outputPath || `projects/${projectId(project)}/daily/${date}.md`;
+    if (exists) {
+      const ok = window.confirm(`目标文件已存在：\n${path}\n\n是否覆盖保存当前编辑？`);
+      if (!ok) return;
+    }
     setSaving(true);
     setError('');
     try {
-      const path = outputPath || `projects/${projectId(project)}/daily/${date}.md`;
       await api.summarySave(path, markdown);
+      setExists(true);
       setMessage(`已保存到 ${path}`);
     } catch (e) {
       setError(e.message);
@@ -149,6 +222,14 @@ export default function SummaryPage() {
             />
           </label>
           <label>
+            路径过滤（可选，逗号分隔）
+            <input
+              placeholder="例如 server,client/src"
+              value={pathsText}
+              onChange={(e) => setPathsText(e.target.value)}
+            />
+          </label>
+          <label>
             输出路径（相对 docs）
             <input value={outputPath} onChange={(e) => setOutputPath(e.target.value)} />
           </label>
@@ -171,6 +252,12 @@ export default function SummaryPage() {
           </label>
         </div>
 
+        {exists && (
+          <div className="alert warn">
+            目标文件已存在：<code>{outputPath}</code>。生成并保存时会提示确认覆盖。
+          </div>
+        )}
+
         <label className="block">
           备注（会写入总结）
           <textarea
@@ -182,13 +269,13 @@ export default function SummaryPage() {
         </label>
 
         <div className="row gap">
-          <button className="btn primary" disabled={loading} onClick={() => generate(false)}>
+          <button type="button" className="btn primary" disabled={loading} onClick={() => generate(false)}>
             {loading ? '生成中…' : '生成预览'}
           </button>
-          <button className="btn" disabled={loading} onClick={() => generate(true)}>
+          <button type="button" className="btn" disabled={loading} onClick={() => generate(true)}>
             生成并保存
           </button>
-          <button className="btn ghost" disabled={saving || !markdown} onClick={saveEdited}>
+          <button type="button" className="btn ghost" disabled={saving || !markdown} onClick={saveEdited}>
             {saving ? '保存中…' : '保存当前编辑'}
           </button>
           {meta?.savedPath && (
@@ -209,7 +296,7 @@ export default function SummaryPage() {
           </div>
           <StatCards stats={changes?.stats} />
           <div className="stats-image-wrap">
-            <img src={api.statsSvgUrl(date)} alt="变更统计图" />
+            <img src={statsImg} alt="变更统计图" />
           </div>
           <h3>文件</h3>
           <ul className="file-list">
@@ -224,7 +311,7 @@ export default function SummaryPage() {
           <h3>Commits</h3>
           <ul className="file-list">
             {(changes?.commits || []).map((c) => (
-              <li key={c.hash}>
+              <li key={c.hash || c.shortHash}>
                 <code>{c.shortHash || c.hash?.slice(0, 7)}</code>
                 <span>{c.message}</span>
               </li>

@@ -1,8 +1,9 @@
 import path from 'node:path';
 import config from '../config.js';
-import { getTodayChanges, getDiffSummary, todayBounds } from './git.js';
-import { saveDocContent } from './docs.js';
+import { getTodayChanges, getDiffSummary } from './git.js';
+import { saveDocContent, docExists } from './docs.js';
 import { projectIdentity } from '../utils/project.js';
+import { localDayBounds } from '../utils/date.js';
 
 function defaultOutputPath(projectId, date) {
   return path.posix.join(
@@ -241,9 +242,10 @@ export async function generateDailySummary(options = {}) {
     customNotes = '',
     includeWorkingTree = true,
     useLlm,
+    force = false,
   } = options;
 
-  const bounds = todayBounds(dateInput);
+  const bounds = localDayBounds(dateInput);
   const date = bounds.date;
   const project = projectIdentity(projectInput, config.defaultProject);
 
@@ -263,29 +265,66 @@ export async function generateDailySummary(options = {}) {
       includeWorkingTree,
     });
   } else {
-    changes = await getTodayChanges(date);
+    changes = await getTodayChanges(date, { paths, includeWorkingTree });
+  }
+
+  const rel = (outputPath || defaultOutputPath(project.id, date)).replace(/\\/g, '/');
+  const alreadyExists = await docExists(rel);
+
+  if (save && alreadyExists && !force) {
+    throw Object.assign(
+      new Error(`Summary already exists at ${rel}. Pass force=true to overwrite.`),
+      {
+        status: 409,
+        details: { path: rel, exists: true },
+      },
+    );
   }
 
   const shouldUseLlm = useLlm === undefined ? config.llm.enabled : Boolean(useLlm) && config.llm.enabled;
 
   let summaryMarkdown;
   let mode = 'template';
+  let fallbackReason = null;
   if (shouldUseLlm) {
     try {
-      summaryMarkdown = await buildLlmMarkdown({ date, project: project.name, style, language, changes, customNotes });
+      summaryMarkdown = await buildLlmMarkdown({
+        date,
+        project: project.name,
+        style,
+        language,
+        changes,
+        customNotes,
+      });
       mode = 'llm';
     } catch (err) {
       console.warn('LLM failed, fallback to template:', err.message);
-      summaryMarkdown = buildTemplateMarkdown({ date, project: project.name, projectId: project.id, style, language, changes, customNotes });
+      summaryMarkdown = buildTemplateMarkdown({
+        date,
+        project: project.name,
+        projectId: project.id,
+        style,
+        language,
+        changes,
+        customNotes,
+      });
       mode = 'template_fallback';
+      fallbackReason = err.message;
     }
   } else {
-    summaryMarkdown = buildTemplateMarkdown({ date, project: project.name, projectId: project.id, style, language, changes, customNotes });
+    summaryMarkdown = buildTemplateMarkdown({
+      date,
+      project: project.name,
+      projectId: project.id,
+      style,
+      language,
+      changes,
+      customNotes,
+    });
   }
 
   let savedPath = null;
   if (save) {
-    const rel = (outputPath || defaultOutputPath(project.id, date)).replace(/\\/g, '/');
     await saveDocContent(rel, summaryMarkdown);
     savedPath = rel;
   }
@@ -295,6 +334,7 @@ export async function generateDailySummary(options = {}) {
     project: project.name,
     projectId: project.id,
     mode,
+    fallbackReason,
     style,
     language,
     summaryMarkdown,
@@ -303,11 +343,27 @@ export async function generateDailySummary(options = {}) {
     files: changes.files,
     truncated: changes.truncated,
     savedPath,
+    outputPath: rel,
+    existed: alreadyExists,
     llmEnabled: config.llm.enabled,
   };
 }
 
-export function buildStatsSvg(stats, modules) {
+function escapeXml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+export function buildStatsSvg(stats, modules, { theme = 'light' } = {}) {
+  const isDark = theme === 'dark';
+  const bg = isDark ? '#121a2b' : '#f8fafc';
+  const text = isDark ? '#e8eefc' : '#0f172a';
+  const muted = isDark ? '#93a0b8' : '#64748b';
+  const bar = isDark ? '#5b8cff' : '#3b82f6';
+
   const width = 640;
   const height = 220;
   const barMax = Math.max(...modules.map(([, n]) => n), 1);
@@ -323,25 +379,17 @@ export function buildStatsSvg(stats, modules) {
     const y = baseY - h;
     const label = name.length > 8 ? `${name.slice(0, 7)}…` : name;
     return `
-      <rect x="${x}" y="${y}" width="${barWidth}" height="${h}" rx="6" fill="#3b82f6"/>
-      <text x="${x + barWidth / 2}" y="${baseY + 16}" text-anchor="middle" font-size="11" fill="#64748b">${escapeXml(label)}</text>
-      <text x="${x + barWidth / 2}" y="${y - 6}" text-anchor="middle" font-size="11" fill="#0f172a">${count}</text>`;
+      <rect x="${x}" y="${y}" width="${barWidth}" height="${h}" rx="6" fill="${bar}"/>
+      <text x="${x + barWidth / 2}" y="${baseY + 16}" text-anchor="middle" font-size="11" fill="${muted}">${escapeXml(label)}</text>
+      <text x="${x + barWidth / 2}" y="${y - 6}" text-anchor="middle" font-size="11" fill="${text}">${count}</text>`;
   }).join('');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <rect width="100%" height="100%" fill="#f8fafc"/>
-  <text x="20" y="28" font-size="16" font-family="Segoe UI, sans-serif" fill="#0f172a">变更模块分布 · files ${stats.filesChanged} · +${stats.insertions}/-${stats.deletions}</text>
-  ${rects || '<text x="20" y="100" fill="#94a3b8">No file changes</text>'}
+  <rect width="100%" height="100%" fill="${bg}"/>
+  <text x="20" y="28" font-size="16" font-family="Segoe UI, sans-serif" fill="${text}">变更模块分布 · files ${stats.filesChanged} · +${stats.insertions}/-${stats.deletions}</text>
+  ${rects || `<text x="20" y="100" fill="${muted}">No file changes</text>`}
 </svg>`;
-}
-
-function escapeXml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 export function modulesFromFiles(files) {
@@ -352,3 +400,5 @@ export function modulesFromFiles(files) {
   }
   return [...map.entries()].sort((a, b) => b[1] - a[1]);
 }
+
+export { buildTemplateMarkdown, defaultOutputPath };

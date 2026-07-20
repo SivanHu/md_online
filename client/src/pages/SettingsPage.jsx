@@ -1,28 +1,73 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
+import { getAuthToken, setAuthToken } from '../utils/auth.js';
 
 export default function SettingsPage() {
   const [config, setConfig] = useState(null);
   const [health, setHealth] = useState(null);
   const [error, setError] = useState('');
+  const [token, setToken] = useState(() => getAuthToken());
+  const [tokenMsg, setTokenMsg] = useState('');
+
+  async function load() {
+    setError('');
+    try {
+      const [c, h] = await Promise.all([api.config(), api.health()]);
+      setConfig(c);
+      setHealth(h);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
 
   useEffect(() => {
-    Promise.all([api.config(), api.health()])
-      .then(([c, h]) => {
-        setConfig(c);
-        setHealth(h);
-      })
-      .catch((e) => setError(e.message));
+    load();
   }, []);
+
+  function saveToken() {
+    setAuthToken(token.trim());
+    setTokenMsg(token.trim() ? 'Token 已保存到本机 localStorage' : '已清除 Token');
+    load();
+  }
 
   return (
     <div className="page">
       <div className="card">
         <h1>设置与运行状态</h1>
         <p className="muted">
-          配置通过项目根目录 <code>.env</code> 管理（参考 <code>.env.example</code>）。修改后需重启服务端。
+          服务端配置通过项目根目录 <code>.env</code> 管理（参考 <code>.env.example</code>）。修改后需重启服务端。
         </p>
         {error && <div className="alert error">{error}</div>}
+
+        <h2>API 鉴权 Token</h2>
+        <p className="muted small">
+          当服务端设置了 <code>AUTH_TOKEN</code> 时，在此填写相同 Token，请求会自动带上 Bearer。
+        </p>
+        <div className="row gap">
+          <input
+            className="grow"
+            type="password"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Bearer Token（可选）"
+            autoComplete="off"
+          />
+          <button type="button" className="btn primary" onClick={saveToken}>保存 Token</button>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => {
+              setToken('');
+              setAuthToken('');
+              setTokenMsg('已清除 Token');
+              load();
+            }}
+          >
+            清除
+          </button>
+        </div>
+        {tokenMsg && <div className="alert ok">{tokenMsg}</div>}
+
         {config && (
           <table className="kv-table">
             <tbody>
@@ -45,6 +90,7 @@ export default function SettingsPage() {
           <li><code>GET /api/health</code></li>
           <li><code>GET /api/docs/tree</code></li>
           <li><code>GET /api/docs/content?path=</code></li>
+          <li><code>PUT /api/docs/content</code></li>
           <li><code>GET /api/git/today</code></li>
           <li><code>POST /api/summary/daily</code></li>
           <li><code>GET /api/summary/stats.svg</code></li>

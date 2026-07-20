@@ -12,7 +12,27 @@ import { projectIdentity } from './utils/project.js';
 
 const app = express();
 
-app.use(cors());
+const corsOptions = {
+  origin(origin, callback) {
+    // Allow non-browser clients (no Origin) and configured dev origins
+    if (!origin) return callback(null, true);
+    if (config.corsOrigins.includes('*')) return callback(null, true);
+    if (config.corsOrigins.includes(origin)) return callback(null, true);
+    // Same-host production (static served from API host)
+    try {
+      const u = new URL(origin);
+      if (u.hostname === '127.0.0.1' || u.hostname === 'localhost') {
+        return callback(null, true);
+      }
+    } catch {
+      // ignore
+    }
+    return callback(null, false);
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '4mb' }));
 app.use(authMiddleware);
 
@@ -65,4 +85,5 @@ app.listen(config.port, config.host, () => {
   console.log(`docs: ${config.docsRoot}`);
   console.log(`git:  ${config.gitRepoPath}`);
   console.log(`llm:  ${config.llm.enabled ? config.llm.model : 'disabled (template mode)'}`);
+  console.log(`auth: ${config.authToken ? 'token required' : 'open (local)'}`);
 });

@@ -4,13 +4,29 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import mermaid from 'mermaid';
+import { slugify } from '../utils/slug.js';
+
+function useThemeAttr() {
+  const [theme, setTheme] = useState(
+    () => document.documentElement.getAttribute('data-theme') || 'dark',
+  );
+  useEffect(() => {
+    const el = document.documentElement;
+    const obs = new MutationObserver(() => {
+      setTheme(el.getAttribute('data-theme') || 'dark');
+    });
+    obs.observe(el, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
+  return theme;
+}
 
 function ensureMermaid(theme) {
   const mTheme = theme === 'light' ? 'default' : 'dark';
   mermaid.initialize({
     startOnLoad: false,
     theme: mTheme,
-    securityLevel: 'loose',
+    securityLevel: 'strict',
     fontFamily: 'IBM Plex Sans, sans-serif',
   });
 }
@@ -62,11 +78,7 @@ function extractToc(markdown) {
     const m = /^(#{1,4})\s+(.+)$/.exec(line);
     if (!m) continue;
     const text = m[2].replace(/#+\s*$/, '').trim();
-    const id = text
-      .toLowerCase()
-      .replace(/[^\w\u4e00-\u9fff\s-]/g, '')
-      .replace(/\s+/g, '-');
-    items.push({ level: m[1].length, text, id });
+    items.push({ level: m[1].length, text, id: slugify(text) });
   }
   return items;
 }
@@ -80,7 +92,7 @@ function getNodeText(node) {
 }
 
 export default function MarkdownView({ content, showToc = true }) {
-  const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const theme = useThemeAttr();
   const toc = useMemo(() => extractToc(content), [content]);
 
   const components = useMemo(

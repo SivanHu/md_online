@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import StatCards from '../components/StatCards.jsx';
+import { formatLocalDate } from '../utils/date.js';
 
 export default function HomePage() {
   const [recent, setRecent] = useState([]);
@@ -20,7 +21,7 @@ export default function HomePage() {
   }, []);
 
   const todayPath = config?.defaultProjectId
-    ? `projects/${config.defaultProjectId}/daily/${new Date().toISOString().slice(0, 10)}.md`
+    ? `projects/${config.defaultProjectId}/daily/${formatLocalDate()}.md`
     : null;
   const hasTodaySummary = Boolean(todayPath) && recent.some((item) => item.path === todayPath);
 
@@ -30,7 +31,7 @@ export default function HomePage() {
         <div>
           <h1>Markdown 知识库 + 每日变更工作台</h1>
           <p className="lead">
-            在线阅读项目文档，并在 Codex 改完代码后一键生成、预览、归档每日修改总结。
+            在线阅读与编辑项目文档，并在 Codex 改完代码后一键生成、预览、归档每日修改总结。
           </p>
           <div className="row gap">
             <Link className="btn primary" to="/docs">浏览文档</Link>

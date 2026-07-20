@@ -61,6 +61,17 @@ export async function getDocTree() {
   };
 }
 
+export async function docExists(relativePath) {
+  try {
+    const { abs } = resolveDocsPath(relativePath);
+    if (!(await pathExists(abs))) return false;
+    const stat = await fs.stat(abs);
+    return stat.isFile() && isMarkdown(abs);
+  } catch {
+    return false;
+  }
+}
+
 export async function getDocContent(relativePath) {
   const { abs, rel } = resolveDocsPath(relativePath);
   if (!(await pathExists(abs))) {
@@ -98,6 +109,48 @@ export async function saveDocContent(relativePath, content, { createDirs = true 
   return { path: rel, bytes: Buffer.byteLength(content, 'utf8') };
 }
 
+function scoreMatch(query, title, rel, content) {
+  const q = query.toLowerCase();
+  const titleL = title.toLowerCase();
+  const relL = rel.toLowerCase();
+  const contentL = content.toLowerCase();
+  let score = 0;
+
+  if (titleL === q) score += 100;
+  else if (titleL.includes(q)) score += 50;
+  if (relL.includes(q)) score += 20;
+  if (path.basename(relL).includes(q)) score += 25;
+
+  // term frequency in content (capped)
+  let idx = 0;
+  let hits = 0;
+  while (hits < 20) {
+    const found = contentL.indexOf(q, idx);
+    if (found === -1) break;
+    hits += 1;
+    idx = found + q.length;
+  }
+  score += hits * 2;
+
+  return score;
+}
+
+function makeSnippet(content, query, maxLen = 180) {
+  const lines = content.split(/\r?\n/);
+  const q = query.toLowerCase();
+  for (const line of lines) {
+    if (line.toLowerCase().includes(q)) {
+      const trimmed = line.trim();
+      const pos = trimmed.toLowerCase().indexOf(q);
+      if (pos > 40) {
+        return `…${trimmed.slice(pos - 30, pos + maxLen - 30)}`;
+      }
+      return trimmed.slice(0, maxLen);
+    }
+  }
+  return lines.find((l) => l.trim())?.trim().slice(0, maxLen) || '';
+}
+
 export async function searchDocs(query, { limit = 50 } = {}) {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return [];
@@ -105,7 +158,6 @@ export async function searchDocs(query, { limit = 50 } = {}) {
   const results = [];
 
   async function walk(absDir, relDir = '') {
-    if (results.length >= limit) return;
     let entries;
     try {
       entries = await fs.readdir(absDir, { withFileTypes: true });
@@ -113,7 +165,6 @@ export async function searchDocs(query, { limit = 50 } = {}) {
       return;
     }
     for (const entry of entries) {
-      if (results.length >= limit) return;
       if (entry.name.startsWith('.')) continue;
       const abs = path.join(absDir, entry.name);
       const rel = relDir ? `${relDir}/${entry.name}` : entry.name;
@@ -129,23 +180,13 @@ export async function searchDocs(query, { limit = 50 } = {}) {
           const hay = `${title}\n${rel}\n${parsed.content}`.toLowerCase();
           if (!hay.includes(q)) continue;
 
-          const lines = parsed.content.split(/\r?\n/);
-          let snippet = '';
-          for (const line of lines) {
-            if (line.toLowerCase().includes(q)) {
-              snippet = line.trim().slice(0, 180);
-              break;
-            }
-          }
-          if (!snippet) {
-            snippet = lines.find((l) => l.trim())?.trim().slice(0, 180) || '';
-          }
-
+          const score = scoreMatch(q, title, rel, parsed.content);
           results.push({
             path: rel.replace(/\\/g, '/'),
             title,
-            snippet,
+            snippet: makeSnippet(parsed.content, q),
             tags: parsed.data?.tags || [],
+            score,
           });
         } catch {
           // skip unreadable files
@@ -155,7 +196,10 @@ export async function searchDocs(query, { limit = 50 } = {}) {
   }
 
   await walk(config.docsRoot);
-  return results;
+  return results
+    .sort((a, b) => b.score - a.score || a.path.localeCompare(b.path))
+    .slice(0, limit)
+    .map(({ score, ...rest }) => rest);
 }
 
 export async function listRecentDocs({ limit = 10 } = {}) {

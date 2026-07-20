@@ -17,6 +17,16 @@ function resolveFromRoot(p, fallback) {
   return path.isAbsolute(raw) ? raw : path.resolve(projectRoot, raw);
 }
 
+function parseOrigins(raw) {
+  if (!raw || !String(raw).trim()) {
+    return ['http://127.0.0.1:5173', 'http://localhost:5173'];
+  }
+  return String(raw)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 const docsRoot = resolveFromRoot(process.env.DOCS_ROOT, './docs');
 const projectsDir = resolveFromRoot(process.env.PROJECTS_DIR, './docs/projects');
 const gitRepoPath = resolveFromRoot(process.env.GIT_REPO_PATH, '.');
@@ -26,6 +36,7 @@ export const config = {
   host: process.env.HOST || '127.0.0.1',
   port: Number(process.env.PORT || 8787),
   authToken: process.env.AUTH_TOKEN || '',
+  corsOrigins: parseOrigins(process.env.CORS_ORIGINS),
   docsRoot,
   projectsDir,
   gitRepoPath,
